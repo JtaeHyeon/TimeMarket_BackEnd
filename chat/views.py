@@ -26,9 +26,19 @@ class MatchRequestView(APIView):
 
         # ✅ 'post.author'를 올바른 필드 이름인 'post.user'로 수정했습니다.
         receiver = post.user
+        
+        # 자신의 게시글에는 채팅을 시작할 수 없음
+        if receiver == request.user:
+            return Response(
+                {"error": "자신의 게시글에는 채팅을 시작할 수 없습니다."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # 나와 상대방이 이미 참여하고 있는 채팅방이 있는지 확인
-        existing_room = Room.objects.prefetch_related('users', 'post__user').filter(users=request.user).filter(users=receiver).first()
+        # 해당 게시글에 대해 나와 상대방이 이미 참여하고 있는 채팅방이 있는지 확인
+        existing_room = Room.objects.prefetch_related('users', 'post__user').filter(
+            post=post,
+            users=request.user
+        ).filter(users=receiver).first()
         if existing_room:
             serializer = RoomSerializer(existing_room, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
