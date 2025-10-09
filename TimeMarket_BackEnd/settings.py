@@ -165,29 +165,15 @@ CHANNEL_LAYERS = {
     }
 }
 
-# WebSocket을 위한 추가 설정
-ALLOWED_HOSTS.extend([
-    'localhost:1234',
-    'localhost:1235',
-    '127.0.0.1:1234',
-    '127.0.0.1:1235',
-])
+# WebSocket을 위한 추가 설정 - 모든 포트 허용
+ALLOWED_HOSTS = ['*']  # 모든 호스트 허용 (개발용)
 
 # Firebase Admin SDK 자격증명 설정 (필요 시 환경변수로 교체)
 FIREBASE_SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'firebase-service-account.json')  # 실제 파일 경로로 교체
 
-# 📌 1. 추가: CORS 설정
-CORS_ALLOW_ALL_ORIGINS = False  # 보안을 위해 False로 변경
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React 개발 서버
-    "http://127.0.0.1:3000",
-    "http://localhost:1234",  # 요청하신 포트
-    "http://127.0.0.1:1234",
-    "http://localhost:1235",  # 요청하신 포트
-    "http://127.0.0.1:1235",
-    "http://localhost:8080",  # Vue.js 기본 포트
-    "http://127.0.0.1:8080",
-]
+# 📌 1. 추가: CORS 설정 - 모든 오리진 허용 (개발용)
+CORS_ALLOW_ALL_ORIGINS = True  # 모든 오리진 허용 (개발용)
+# CORS_ALLOWED_ORIGINS는 CORS_ALLOW_ALL_ORIGINS=True일 때 무시됨
 
 # WebSocket 연결을 위한 CORS 설정
 CORS_ALLOW_CREDENTIALS = True
