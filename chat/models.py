@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
 from posts.models import TimePost
 from users.models import User
 
@@ -37,8 +38,22 @@ class TradeRequest(models.Model):
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_trade_requests')
     
     # 거래 조건
-    proposed_price = models.DecimalField(max_digits=10, decimal_places=2)
-    proposed_hours = models.DecimalField(max_digits=5, decimal_places=2)
+    proposed_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[
+            MinValueValidator(0.01, message="제안 가격은 0.01원 이상이어야 합니다."),
+            MaxValueValidator(99999999.99, message="제안 가격은 99,999,999.99원을 초과할 수 없습니다.")
+        ]
+    )
+    proposed_hours = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        validators=[
+            MinValueValidator(0.01, message="제안 시간은 0.01시간 이상이어야 합니다."),
+            MaxValueValidator(999.99, message="제안 시간은 999.99시간을 초과할 수 없습니다.")
+        ]
+    )
     message = models.TextField(blank=True, null=True)
     
     # 상태 관리

@@ -76,9 +76,16 @@ class TradeRequestCreateSerializer(serializers.ModelSerializer):
     def validate_proposed_price(self, value):
         if value <= 0:
             raise serializers.ValidationError("제안 가격은 0보다 커야 합니다.")
+        if value > 99999999.99:
+            raise serializers.ValidationError("제안 가격은 99,999,999.99원을 초과할 수 없습니다.")
         return value
     
     def validate_proposed_hours(self, value):
         if value <= 0:
             raise serializers.ValidationError("제안 시간은 0보다 커야 합니다.")
+        if value > 999.99:
+            raise serializers.ValidationError("제안 시간은 999.99시간을 초과할 수 없습니다.")
+        # 추가적으로 일반적인 시간 범위 체크
+        if value > 168:  # 1주일 = 168시간
+            raise serializers.ValidationError("제안 시간이 너무 깁니다. 일반적으로 168시간(1주일) 이하로 설정해주세요.")
         return value
