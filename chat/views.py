@@ -188,3 +188,22 @@ class TradeRequestDetailView(generics.RetrieveUpdateAPIView):
         if trade_request.requester_accepted and trade_request.receiver_accepted and trade_request.status == 'pending':
             trade_request.status = 'completed'
             trade_request.save()
+
+
+class TradeHistoryView(generics.ListAPIView):
+    """사용자의 전체 거래 히스토리 조회"""
+    permission_classes = [IsAuthenticated]
+    serializer_class = TradeRequestSerializer
+
+    def get_queryset(self):
+        # 사용자가 참여한 모든 채팅방의 거래 요청을 조회
+        return TradeRequest.objects.filter(
+            room__users=self.request.user
+        ).select_related(
+            'room', 'post', 'post__user', 'requester', 'receiver'
+        ).order_by('-created_at')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({"request": self.request})
+        return context
