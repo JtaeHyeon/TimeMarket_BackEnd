@@ -1,8 +1,11 @@
+# baskduf/timemarket_backend/TimeMarket_BackEnd-af582882d1bc775a5de6f36633ddc9966161e2e3/users/serializers.py
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
+
 
 # 회원가입용
 class SignUpSerializer(serializers.ModelSerializer):
@@ -28,6 +31,7 @@ class SignUpSerializer(serializers.ModelSerializer):
 # 사용자 정보 조회 및 수정용
 from rest_framework import serializers
 
+
 class UserSerializer(serializers.ModelSerializer):
     profile_image = serializers.SerializerMethodField()
 
@@ -41,7 +45,22 @@ class UserSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.profile_image.url)
         return None
 
-    
+
+# ▼▼▼▼▼ [추가] 비밀번호 변경 Serializer ▼▼▼▼▼
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("현재 비밀번호가 일치하지 않습니다.")
+        return value
+
+
+# ▲▲▲▲▲ [추가] 비밀번호 변경 Serializer ▲▲▲▲▲
+
+
 # 로그인용 (JWT 커스터마이징 가능)
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     # username_field를 nickname으로 설정
