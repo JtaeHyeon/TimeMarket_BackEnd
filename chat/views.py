@@ -2,8 +2,11 @@ from rest_framework import generics, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import Room, ChatMessage
-from .serializers import RoomSerializer, ChatMessageSerializer, ChatRoomListSerializer
+from .models import Room, ChatMessage, TradeRequest
+from .serializers import (
+    RoomSerializer, ChatMessageSerializer, ChatRoomListSerializer,
+    TradeRequestSerializer, TradeRequestCreateSerializer
+)
 from users.models import User
 from posts.models import TimePost
 from django.http import Http404
@@ -97,3 +100,81 @@ class ChatMessageListCreateView(generics.ListCreateAPIView):
             sender=self.request.user,
             receiver=receiver
         )
+
+
+class TradeRequestListView(generics.ListAPIView):
+    """채팅방의 거래 요청 목록 조회"""
+    permission_classes = [IsAuthenticated]
+    serializer_class = TradeRequestSerializer
+
+    def get_queryset(self):
+        room_id = self.kwargs['room_id']
+        # 사용자가 참여한 채팅방의 거래 요청만 조회
+        return TradeRequest.objects.filter(
+            room__id=room_id,
+            room__users=self.request.user
+        ).order_by('-created_at')
+
+
+class TradeRequestCreateView(generics.CreateAPIView):
+    """거래 요청 생성 (REST API용 - WebSocket 대신 사용 가능)"""
+    permission_classes = [IsAuthenticated]
+    serializer_class = TradeRequestCreateSerializer
+
+    def perform_create(self, serializer):
+        room_id = self.kwargs['room_id']
+        try:
+            room = Room.objects.get(id=room_id)
+        except Room.DoesNotExist:
+            raise serializers.ValidationError("채팅방을 찾을 수 없습니다.")
+        
+        # 사용자가 이 채팅방에 참여하고 있는지 확인
+        if not room.users.filter(id=self.request.user.id).exists():
+            raise serializers.ValidationError("이 채팅방에 접근할 권한이 없습니다.")
+        
+        receiver = room.users.exclude(id=self.request.user.id).first()
+
+        if not receiver:
+            raise serializers.ValidationError("상대방을 찾을 수 없습니다.")
+
+        serializer.save(
+            room=room,
+            post=room.post,
+            requester=self.request.user,
+            receiver=receiver
+        )
+
+
+class TradeRequestDetailView(generics.RetrieveUpdateAPIView):
+    """거래 요청 상세 조회 및 수정"""
+    permission_classes = [IsAuthenticated]
+    serializer_class = TradeRequestSerializer
+    lookup_field = 'id'
+    lookup_url_kwarg = 'trade_id'
+
+    def get_queryset(self):
+        return TradeRequest.objects.filter(
+            room__users=self.request.user
+        )
+
+    def perform_update(self, serializer):
+        trade_request = self.get_object()
+        
+        # 사용자가 요청자인지 수신자인지 확인
+        if trade_request.requester == self.request.user:
+            # 요청자는 자신의 수락 상태만 변경 가능
+            if 'requester_accepted' in self.request.data:
+                serializer.save(requester_accepted=self.request.data['requester_accepted'])
+        elif trade_request.receiver == self.request.user:
+            # 수신자는 자신의 수락 상태만 변경 가능
+            if 'receiver_accepted' in self.request.data:
+                serializer.save(receiver_accepted=self.request.data['receiver_accepted'])
+        else:
+            raise serializers.ValidationError("이 거래 요청에 대한 권한이 없습니다.")
+        
+        # 거래 완료 확인 (객체를 새로고침하고 확인)
+        trade_request.refresh_from_db()
+        # 양쪽 모두 수락했는지 확인하고 상태 업데이트
+        if trade_request.requester_accepted and trade_request.receiver_accepted and trade_request.status == 'pending':
+            trade_request.status = 'completed'
+            trade_request.save()

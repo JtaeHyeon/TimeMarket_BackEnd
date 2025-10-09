@@ -14,14 +14,20 @@ def get_user_from_token(token):
 
 def JWTAuthMiddleware(inner):
     async def middleware(scope, receive, send):
+        print(f"🔍 미들웨어 처리 - scope type: {scope['type']}, path: {scope.get('path', 'N/A')}")
+        
         query_string = scope["query_string"].decode()
         query_params = parse_qs(query_string)
         token = query_params.get("token", [None])[0]
+        
+        print(f"🔑 토큰: {token[:50] if token else 'None'}...")
 
         if token:
             scope["user"] = await get_user_from_token(token)
         else:
             scope["user"] = AnonymousUser()
+            
+        print(f"👤 사용자: {scope['user']}")
 
         return await inner(scope, receive, send)
 
