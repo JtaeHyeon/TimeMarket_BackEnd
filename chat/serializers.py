@@ -1,12 +1,16 @@
 from rest_framework import serializers
 from .models import ChatMessage, Room
 from users.models import User
+from posts.models import TimePost
+from users.serializers import UserSerializer
 
-# ✅ 채팅방 목록과 메시지에 필요한 최소한의 유저 정보를 담을 Serializer
-class UserSerializer(serializers.ModelSerializer):
+# TimePost 정보를 위한 간단한 시리얼라이저 (순환 import 방지)
+class SimpleTimePostSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    
     class Meta:
-        model = User
-        fields = ['id', 'nickname', 'profile_image']
+        model = TimePost
+        fields = ['id', 'title', 'description', 'type', 'latitude', 'longitude', 'created_at', 'price', 'user']
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
@@ -19,17 +23,20 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 # ✅ 1. 기본 채팅방 정보를 위한 RoomSerializer를 다시 정의합니다.
 #    MatchRequestView와 ChatRoomDetailView에서 사용됩니다.
 class RoomSerializer(serializers.ModelSerializer):
-    users = serializers.StringRelatedField(many=True)
+    users = UserSerializer(many=True, read_only=True)
+    post = SimpleTimePostSerializer(read_only=True)
 
     class Meta:
         model = Room
         fields = ['id', 'post', 'users', 'created_at']
+    
 
 # ✅ 2. 채팅방 '목록'에 필요한 상세 정보를 담는 ChatRoomListSerializer는 그대로 유지합니다.
 #    MyChatsView에서 사용됩니다.
 class ChatRoomListSerializer(serializers.ModelSerializer):
     other_user = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
+    post = SimpleTimePostSerializer(read_only=True)
 
     class Meta:
         model = Room
