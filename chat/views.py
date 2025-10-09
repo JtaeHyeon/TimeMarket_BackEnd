@@ -25,13 +25,16 @@ class MatchRequestView(APIView):
         receiver = post.user
 
         # 나와 상대방이 이미 참여하고 있는 채팅방이 있는지 확인
-        existing_room = Room.objects.filter(users=request.user).filter(users=receiver).first()
+        existing_room = Room.objects.prefetch_related('users', 'post__user').filter(users=request.user).filter(users=receiver).first()
         if existing_room:
-            serializer = RoomSerializer(existing_room)
+            serializer = RoomSerializer(existing_room, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         room = Room.objects.create(post=post)
         room.users.add(request.user, receiver)
+        
+        # ManyToMany 관계를 포함해서 room을 다시 가져옴
+        room = Room.objects.prefetch_related('users', 'post__user').get(id=room.id)
 
         try:
             title = f"{request.user.nickname}와 새로운 채팅방"
@@ -41,7 +44,9 @@ class MatchRequestView(APIView):
         except Exception:
             pass
 
-        return Response(RoomSerializer(room).data, status=status.HTTP_201_CREATED)
+        # context를 명시적으로 전달
+        serializer = RoomSerializer(room, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class MyChatsView(generics.ListAPIView):
@@ -49,7 +54,7 @@ class MyChatsView(generics.ListAPIView):
     serializer_class = ChatRoomListSerializer
 
     def get_queryset(self):
-        return Room.objects.filter(users=self.request.user)
+        return Room.objects.filter(users=self.request.user).select_related('post__user').prefetch_related('users', 'messages')
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -59,10 +64,16 @@ class MyChatsView(generics.ListAPIView):
 
 class ChatRoomDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
-    queryset = Room.objects.all()
+    queryset = Room.objects.select_related('post__user').prefetch_related('users')
     serializer_class = RoomSerializer
     lookup_field = 'id'
     lookup_url_kwarg = 'room_id'
+    
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({"request": self.request})
+        return context
 
 
 class ChatMessageListCreateView(generics.ListCreateAPIView):
