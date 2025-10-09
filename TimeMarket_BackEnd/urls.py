@@ -1,8 +1,9 @@
 # project/urls.py
+from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    # ... 기존 URL들
+    path('admin/', admin.site.urls),
     path('api/wallet/', include('wallet.urls')),
     path('api/', include('users.urls')),
     path('api/map/', include('map.urls')),

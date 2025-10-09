@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ChatMessage, Room
+from .models import ChatMessage, Room, TradeRequest
 from users.models import User
 from posts.models import TimePost
 from users.serializers import UserSerializer
@@ -50,3 +50,35 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
     def get_last_message(self, obj):
         last_msg = obj.messages.order_by('-timestamp').first()
         return ChatMessageSerializer(last_msg, context=self.context).data if last_msg else None
+
+
+class TradeRequestSerializer(serializers.ModelSerializer):
+    requester = UserSerializer(read_only=True)
+    receiver = UserSerializer(read_only=True)
+    post = SimpleTimePostSerializer(read_only=True)
+    
+    class Meta:
+        model = TradeRequest
+        fields = [
+            'id', 'room', 'post', 'requester', 'receiver',
+            'proposed_price', 'proposed_hours', 'message',
+            'status', 'requester_accepted', 'receiver_accepted',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'status']
+
+
+class TradeRequestCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TradeRequest
+        fields = ['proposed_price', 'proposed_hours', 'message']
+        
+    def validate_proposed_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("제안 가격은 0보다 커야 합니다.")
+        return value
+    
+    def validate_proposed_hours(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("제안 시간은 0보다 커야 합니다.")
+        return value
