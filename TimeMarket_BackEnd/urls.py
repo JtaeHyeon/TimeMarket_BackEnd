@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/map/', include('map.urls')),
     path('api/time-posts/', include('posts.urls')),
     path('api/chat/', include('chat.urls')),
+    path('api/trades/', include('chat.urls')),  # 거래 히스토리용 추가 경로
     path('api/push/', include('push_notice.urls')),  # 추가
 ]
 

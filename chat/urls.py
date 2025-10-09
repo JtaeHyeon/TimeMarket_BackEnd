@@ -12,4 +12,7 @@ urlpatterns = [
     path('match/chat/<int:room_id>/trades/', views.TradeRequestListView.as_view(), name='trade-list'), #거래 요청 목록
     path('match/chat/<int:room_id>/trades/create/', views.TradeRequestCreateView.as_view(), name='trade-create'), #거래 요청 생성
     path('match/trades/<int:trade_id>/', views.TradeRequestDetailView.as_view(), name='trade-detail'), #거래 요청 상세/수정
+    
+    # 거래 히스토리 (전체)
+    path('history/', views.TradeHistoryView.as_view(), name='trade-history'), #전체 거래 히스토리
 ]
