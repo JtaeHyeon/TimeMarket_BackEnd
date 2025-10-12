@@ -35,8 +35,8 @@ from rest_framework import serializers
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'nickname', 'email', 'profile_image']
-        read_only_fields = ['id']
+        fields = ['id', 'nickname', 'email', 'profile_image', 'average_rating', 'rating_count']
+        read_only_fields = ['id', 'average_rating', 'rating_count']
 
     def to_representation(self, instance):
         """응답 시 profile_image를 전체 URL로 변환"""
