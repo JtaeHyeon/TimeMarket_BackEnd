@@ -33,3 +33,33 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+    @property
+    def average_rating(self):
+        """받은 리뷰의 평균 평점을 실시간으로 계산합니다."""
+        try:
+            from django.apps import apps
+            Review = apps.get_model('review', 'Review')
+            reviews = Review.objects.filter(target=self)
+            count = reviews.count()
+            if count == 0:
+                return 0.00
+
+            from decimal import Decimal
+            total = Decimal('0')
+            for r in reviews:
+                total += Decimal(str(r.rating))
+            avg = (total / count).quantize(Decimal('0.01'))
+            return float(avg)
+        except Exception:
+            return 0.00
+
+    @property
+    def rating_count(self):
+        """받은 리뷰의 개수를 실시간으로 계산합니다."""
+        try:
+            from django.apps import apps
+            Review = apps.get_model('review', 'Review')
+            return Review.objects.filter(target=self).count()
+        except Exception:
+            return 0

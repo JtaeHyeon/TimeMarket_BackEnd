@@ -10,7 +10,8 @@ urlpatterns = [
     path('api/time-posts/', include('posts.urls')),
     path('api/chat/', include('chat.urls')),
     path('api/trades/', include('chat.urls')),  # 거래 히스토리용 추가 경로
-    path('api/push/', include('push_notice.urls')),  # 추가
+    path('api/push/', include('push_notice.urls')),
+    path('api/reviews/', include('review.urls')),  # 리뷰 API
 ]
 
 from django.conf import settings

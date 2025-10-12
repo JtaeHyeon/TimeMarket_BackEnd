@@ -29,15 +29,14 @@ class SignUpSerializer(serializers.ModelSerializer):
 
 
 # 사용자 정보 조회 및 수정용
-from rest_framework import serializers
-
-
 class UserSerializer(serializers.ModelSerializer):
     profile_image = serializers.SerializerMethodField()
+    average_rating = serializers.ReadOnlyField()
+    rating_count = serializers.ReadOnlyField()
 
     class Meta:
         model = User
-        fields = ['id', 'nickname', 'email', 'profile_image']
+        fields = ['id', 'nickname', 'email', 'profile_image', 'average_rating', 'rating_count']
 
     def get_profile_image(self, obj):
         request = self.context.get('request')

@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "wallet", "users", "map", "posts",
     "push_notice",  # 푸시 알림 앱 추가
     "corsheaders",  # 👈 1. 이 부분을 추가
+    "review",  # 리뷰 앱 추가
 ]
 
 MIDDLEWARE = [
