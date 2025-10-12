@@ -33,7 +33,7 @@ class NearbyTimePostList(APIView):
             key=lambda post: haversine(lat, lng, post.latitude or 0, post.longitude or 0)
         )
 
-        serializer = TimePostSerializer(posts[:30], many=True)  # 최대 30개 제한
+        serializer = TimePostSerializer(posts[:30], many=True, context={'request': request})  # context 추가
         return Response(serializer.data)
 
 class TimePostCreate(generics.CreateAPIView):

@@ -36,13 +36,19 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
+        fields = ['id', 'nickname', 'email', 'profile_image']
+        read_only_fields = ['id']
         fields = ['id', 'nickname', 'email', 'profile_image', 'average_rating', 'rating_count']
 
-    def get_profile_image(self, obj):
+    def to_representation(self, instance):
+        """응답 시 profile_image를 전체 URL로 변환"""
+        data = super().to_representation(instance)
         request = self.context.get('request')
-        if obj.profile_image and request:
-            return request.build_absolute_uri(obj.profile_image.url)
-        return None
+        if instance.profile_image and request:
+            data['profile_image'] = request.build_absolute_uri(instance.profile_image.url)
+        else:
+            data['profile_image'] = None
+        return data
 
 
 # ▼▼▼▼▼ [추가] 비밀번호 변경 Serializer ▼▼▼▼▼
