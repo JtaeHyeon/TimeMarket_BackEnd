@@ -29,22 +29,30 @@ class SignUpSerializer(serializers.ModelSerializer):
 
 
 # 사용자 정보 조회 및 수정용
-class UserSerializer(serializers.ModelSerializer):
-    profile_image = serializers.SerializerMethodField()
-    average_rating = serializers.ReadOnlyField()
-    rating_count = serializers.ReadOnlyField()
+from rest_framework import serializers
 
+
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'nickname', 'email', 'profile_image', 'average_rating', 'rating_count']
         read_only_fields = ['id', 'average_rating', 'rating_count']
 
-    def get_profile_image(self, obj):
+    def to_representation(self, instance):
         """응답 시 profile_image를 전체 URL로 변환"""
-        request = self.context.get('request')
-        if obj.profile_image and request:
-            return request.build_absolute_uri(obj.profile_image.url)
-        return None
+        data = super().to_representation(instance)
+        if instance.profile_image:
+            request = self.context.get('request')
+            if request:
+                # HTTP 요청이 있으면 전체 URL 생성
+                data['profile_image'] = request.build_absolute_uri(instance.profile_image.url)
+            else:
+                # WebSocket 등 request가 없는 경우 상대 URL 반환
+                from django.conf import settings
+                data['profile_image'] = f"{settings.MEDIA_URL}{instance.profile_image}"
+        else:
+            data['profile_image'] = None
+        return data
 
 
 # ▼▼▼▼▼ [추가] 비밀번호 변경 Serializer ▼▼▼▼▼

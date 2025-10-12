@@ -182,10 +182,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         receiver = room.users.exclude(id=self.user.id).first()
         return receiver
 
+    def _create_fake_request(self):
+        """WebSocket에서 사용할 가짜 request 객체 생성"""
+        class FakeRequest:
+            def __init__(self, scope):
+                self.scope = scope
+            
+            def build_absolute_uri(self, path):
+                # WebSocket scope에서 host 정보 가져오기
+                headers = dict(self.scope.get('headers', []))
+                host = headers.get(b'host', b'localhost:8000').decode('utf-8')
+                scheme = 'https' if self.scope.get('scheme') == 'wss' else 'http'
+                return f"{scheme}://{host}{path}"
+        
+        return FakeRequest(self.scope)
+    
     # ✅ 메시지 객체를 직렬화하는 헬퍼 함수 추가
     @sync_to_async
     def serialize_message(self, message_obj):
-        return ChatMessageSerializer(message_obj).data
+        fake_request = self._create_fake_request()
+        return ChatMessageSerializer(message_obj, context={'request': fake_request}).data
     
     @sync_to_async
     def get_room(self):
@@ -246,4 +262,5 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def serialize_trade_request(self, trade_request):
         """거래 요청 직렬화"""
-        return TradeRequestSerializer(trade_request).data
+        fake_request = self._create_fake_request()
+        return TradeRequestSerializer(trade_request, context={'request': fake_request}).data
