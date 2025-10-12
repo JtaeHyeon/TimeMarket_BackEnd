@@ -41,9 +41,15 @@ class UserSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """응답 시 profile_image를 전체 URL로 변환"""
         data = super().to_representation(instance)
-        request = self.context.get('request')
-        if instance.profile_image and request:
-            data['profile_image'] = request.build_absolute_uri(instance.profile_image.url)
+        if instance.profile_image:
+            request = self.context.get('request')
+            if request:
+                # HTTP 요청이 있으면 전체 URL 생성
+                data['profile_image'] = request.build_absolute_uri(instance.profile_image.url)
+            else:
+                # WebSocket 등 request가 없는 경우 상대 URL 반환
+                from django.conf import settings
+                data['profile_image'] = f"{settings.MEDIA_URL}{instance.profile_image}"
         else:
             data['profile_image'] = None
         return data
