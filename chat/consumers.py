@@ -7,7 +7,7 @@ from wallet.models import Wallet, Transaction
 from asgiref.sync import sync_to_async
 from django.db import transaction
 # ✅ serializers를 import하여 데이터 형식을 통일합니다.
-from .serializers import ChatMessageSerializer, TradeRequestSerializer
+from .serializers import ChatMessageSerializer, TradeRequestSerializer, TradeRequestCreateSerializer
 from rest_framework import serializers as rest_serializers
 import logging
 
@@ -102,14 +102,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.send_error(error_msg)
                 return
             
+            # ✅ Serializer를 사용하여 데이터 검증
+            trade_data = {
+                'proposed_price': data.get('proposed_price'),
+                'proposed_hours': data.get('proposed_hours'),
+                'message': data.get('message', '')
+            }
+            
+            serializer = TradeRequestCreateSerializer(data=trade_data)
+            if not serializer.is_valid():
+                # 검증 실패 시 에러 메시지 전송
+                error_messages = []
+                for field, errors in serializer.errors.items():
+                    for error in errors:
+                        error_messages.append(f"{field}: {error}")
+                error_msg = " | ".join(error_messages)
+                logger.warning(f"  - ❌ 검증 실패: {error_msg}")
+                await self.send_error(f"입력값 검증 실패: {error_msg}")
+                return
+            
+            logger.info(f"  - ✅ 데이터 검증 완료")
+            
             # 거래 요청 생성
             trade_request = await self.create_trade_request(
                 room=room,
                 requester=self.user,
                 receiver=receiver,
-                proposed_price=data['proposed_price'],
-                proposed_hours=data['proposed_hours'],
-                message=data.get('message', '')
+                proposed_price=serializer.validated_data['proposed_price'],
+                proposed_hours=serializer.validated_data['proposed_hours'],
+                message=serializer.validated_data['message']
             )
             
             logger.info(f"  - 생성된 거래 요청 ID: {trade_request.id}")
