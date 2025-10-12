@@ -134,13 +134,18 @@ class TradeRequestCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         room_id = self.kwargs['room_id']
         try:
-            room = Room.objects.get(id=room_id)
+            room = Room.objects.select_related('post__user').get(id=room_id)
         except Room.DoesNotExist:
             raise serializers.ValidationError("채팅방을 찾을 수 없습니다.")
         
         # 사용자가 이 채팅방에 참여하고 있는지 확인
         if not room.users.filter(id=self.request.user.id).exists():
             raise serializers.ValidationError("이 채팅방에 접근할 권한이 없습니다.")
+        
+        # ✅ 검증: 자신의 게시글에는 거래 요청을 할 수 없음
+        if room.post.user.id == self.request.user.id:
+            post_type_display = room.post.get_type_display()
+            raise serializers.ValidationError(f"자신의 {post_type_display}에는 거래 요청을 할 수 없습니다.")
         
         receiver = room.users.exclude(id=self.request.user.id).first()
 
@@ -168,26 +173,42 @@ class TradeRequestDetailView(generics.RetrieveUpdateAPIView):
         )
 
     def perform_update(self, serializer):
-        trade_request = self.get_object()
+        from django.db import transaction
+        from django.core.exceptions import ValidationError as DjangoValidationError
         
-        # 사용자가 요청자인지 수신자인지 확인
-        if trade_request.requester == self.request.user:
-            # 요청자는 자신의 수락 상태만 변경 가능
-            if 'requester_accepted' in self.request.data:
-                serializer.save(requester_accepted=self.request.data['requester_accepted'])
-        elif trade_request.receiver == self.request.user:
-            # 수신자는 자신의 수락 상태만 변경 가능
-            if 'receiver_accepted' in self.request.data:
-                serializer.save(receiver_accepted=self.request.data['receiver_accepted'])
-        else:
-            raise serializers.ValidationError("이 거래 요청에 대한 권한이 없습니다.")
-        
-        # 거래 완료 확인 (객체를 새로고침하고 확인)
-        trade_request.refresh_from_db()
-        # 양쪽 모두 수락했는지 확인하고 상태 업데이트
-        if trade_request.requester_accepted and trade_request.receiver_accepted and trade_request.status == 'pending':
-            trade_request.status = 'completed'
-            trade_request.save()
+        with transaction.atomic():
+            # 🔒 락을 걸어서 거래 요청 조회
+            trade_request = TradeRequest.objects.select_for_update().select_related(
+                'post__user', 'requester', 'receiver'
+            ).get(id=self.kwargs['trade_id'])
+            
+            # ✅ 이미 처리된 거래는 수정 불가
+            if trade_request.status in ['completed', 'rejected', 'cancelled']:
+                raise serializers.ValidationError(f"이미 처리된 거래는 수정할 수 없습니다 (상태: {trade_request.get_status_display()})")
+            
+            # 사용자가 요청자인지 수신자인지 확인
+            if trade_request.requester == self.request.user:
+                # 요청자는 자신의 수락 상태만 변경 가능
+                if 'requester_accepted' in self.request.data:
+                    serializer.save(requester_accepted=self.request.data['requester_accepted'])
+            elif trade_request.receiver == self.request.user:
+                # 수신자는 자신의 수락 상태만 변경 가능
+                if 'receiver_accepted' in self.request.data:
+                    serializer.save(receiver_accepted=self.request.data['receiver_accepted'])
+            else:
+                raise serializers.ValidationError("이 거래 요청에 대한 권한이 없습니다.")
+            
+            # 거래 완료 확인 (객체를 새로고침하고 확인)
+            trade_request.refresh_from_db()
+            
+            # 양쪽 모두 수락했는지 확인하고 거래 처리
+            if trade_request.requester_accepted and trade_request.receiver_accepted and trade_request.status == 'pending':
+                try:
+                    # ✅ 모델의 process_trade 메서드를 사용하여 거래 처리
+                    trade_request.process_trade()
+                except DjangoValidationError as e:
+                    # Django ValidationError를 DRF ValidationError로 변환
+                    raise serializers.ValidationError(str(e))
 
 
 class TradeHistoryView(generics.ListAPIView):
